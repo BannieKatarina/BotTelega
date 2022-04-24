@@ -2,6 +2,8 @@ import logging
 from telegram.ext import Updater, MessageHandler, Filters, CommandHandler, ConversationHandler
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from data.data import tok
+import sqlite3
+import requests
 import random
 import csv
 
@@ -16,13 +18,13 @@ TOKEN = tok
 
 def start(update, context):
     update.message.reply_text("""Этот бот может поиграть с Вами в \'Города\', \'Угадай человека\' и некоторые другие.
-    Подробнее \'/help\'.""")
+Подробнее \'/help\'.""")
 
 
 def help(update, context):
     update.message.reply_text("""/start_cityes - играть в \'Города\';
-    /start_labyrint - играть в \'Лабиринт\'
-    /start_countryes - играть в \'Угадай страну по карте\'""")
+/start_labyrint - играть в \'Лабиринт\'
+/start_countries - играть в \'Угадай страну по карте\'""")
 
 
 def cityes_start(update, context):
@@ -317,8 +319,135 @@ def third_act_two(update, context):
         return ConversationHandler.END
 
 
+def help_countries(update, context):
+    text = 'В этой игре надо угадать город по карте. Карта может быть типа \"Схема\", \"Спутник\" или '
+    text += '\"Гибрид\". На карте будет одна из знаменитых достопримечательностей. У Вас три попытки. '
+    text += 'После трёх попыток будет показан правильный ответ и достопримечательность, изображенная '
+    text += 'на карте. Когда игра закончиться, бот покажет вам сколько стран Вы смогли отгадать.'
+    update.message.reply_text(text)
+
+
+def select_country(sp):
+    con = sqlite3.connect('data/bots_countries.db')
+    cur = con.cursor()
+    index = random.choice(sp)
+    lon, lat = cur.execute(f"""SELECT longitudes, latitudes FROM Countries WHERE id={index}""").fetchone()
+    api_server = "http://static-maps.yandex.ru/1.x/"
+    params = {
+        "ll": ",".join([str(lon), str(lat)]),
+        "spn": '0.002,0.002',
+        "l": random.choice(["map", "sat", "sat,skl"])
+    }
+    response = requests.get(api_server, params=params)
+    return index, response.url
+
+
+def start_countries(update, context):
+    if 'countries' not in context.user_data:
+        reply_keyboard = [['/help_countries']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        context.user_data['countries'] = [i for i in range(1, 23)]
+        context.user_data['country_tries'] = 3
+        context.user_data['right_country_count'] = 0
+        context.user_data['all_country_count'] = 0
+        context.user_data['country_task'], image = select_country(context.user_data['countries'])
+        update.message.reply_text(image)
+        update.message.reply_text('Что это за страна?', reply_markup=markup)
+        return 1
+    else:
+        if context.user_data['countries']:
+            reply_keyboard = [['Да', 'Нет']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            context.user_data['countries_play'] = True
+            text = 'Вы отгадали все страны, которые я мог вам предложить. '
+            text += 'Хотите обновить игру?'
+            update.message.reply_text(text, reply_markup=markup)
+            return 2
+        else:
+            reply_keyboard = [['Да', 'Нет']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            context.user_data['countries_play'] = False
+            text = 'Вы уже играли в это игру. Хотите продолжить или обновить игру?'
+            update.message.reply_text(text, reply_markup=markup)
+            return 2
+
+
+def check_country(update, context):
+    con = sqlite3.connect('data/bots_countries.db')
+    cur = con.cursor()
+    right_country, landmark = cur.execute(f"""SELECT country, landmark FROM Countries
+        WHERE id={context.user_data['country_task']}""").fetchone()
+    if update.message.text == right_country:
+        reply_keyboard = [['Да', 'Нет']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = 'Поздравляю! Это правильный ответ.'
+        text += f'Это {landmark}. Продолжить?'
+        context.user_data['right_country_count'] += 1
+        context.user_data['all_country_count'] += 1
+        context.user_data['countries'].remove(context.user_data['country_task'])
+        update.message.reply_text(text, reply_markup=markup)
+        return 3
+    elif update.message.text != right_country and context.user_data['country_tries'] > 1:
+        context.user_data['country_tries'] -= 1
+        text = f'Вы не отгадали. У вас осталось {context.user_data["country_tries"]} '
+        text += f'попытк{"и" if context.user_data["country_tries"] == 2 else "а"}.'
+        update.message.reply_text(text)
+        return 1
+    else:
+        text = f'Вы не отгадали. Это {right_country}. '
+        text += f'Достопримечательность - {landmark}. Продолжить?'
+        context.user_data['all_country_count'] += 1
+        reply_keyboard = [['Да', 'Нет']]
+        context.user_data['countries'].remove(context.user_data['country_task'])
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        update.message.reply_text(text, reply_markup=markup)
+        return 3
+
+
+def reset_countries(update, context):
+    if update.message.text == 'Да':
+        context.user_data['countries'] = [i for i in range(1, 23)]
+        context.user_data['country_tries'] = 3
+        context.user_data['right_country_count'] = 0
+        context.user_data['all_country_count'] = 0
+        context.user_data['country_task'], image = select_country(context.user_data['countries'])
+        update.message.reply_text(image)
+        update.message.reply_text('Что это за страна?')
+        return 1
+    else:
+        if not context.user_data['countries_play']:
+            update.message.reply_text('Будем играть с тем, что есть.')
+            context.user_data['country_tries'] = 3
+            context.user_data['right_country_count'] = 0
+            context.user_data['all_country_count'] = 0
+            context.user_data['country_task'], image = select_country(context.user_data['countries'])
+            update.message.reply_text(image)
+            update.message.reply_text('Что это за страна?')
+            return 1
+        else:
+            update.message.reply_text('Тогда до свидания.')
+            return ConversationHandler.END
+
+
+def country_sel(update, context):
+    if update.message.text == 'Да':
+        reply_keyboard = [['/help_countries']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        context.user_data['country_tries'] = 3
+        context.user_data['country_task'], image = select_country(context.user_data['countries'])
+        update.message.reply_text(image)
+        update.message.reply_text('Что это за страна?', reply_markup=markup)
+        return 1
+    else:
+        reply_keyboard = [['/start_countries', '/close']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = f'Вы отгадали {context.user_data["right_country_count"]} из '
+        text += f'{context.user_data["all_country_count"]}'
+        update.message.reply_text(text, reply_markup=markup)
+
+
 def close_keyboard(update, context):
-    update.message.reply_text(reply_markup=ReplyKeyboardRemove())
+    update.message.reply_text("Ок!", reply_markup=ReplyKeyboardRemove())
 
 
 def stop(update, context):
@@ -344,16 +473,19 @@ def main():
                 3.1: [MessageHandler(Filters.text & ~Filters.command, third_act_one)],
                 3.2: [MessageHandler(Filters.text & ~Filters.command, third_act_two)]},
         fallbacks=[CommandHandler('stop', stop)])
-    # countries_handler = ConversationHandler(
-    #     entry_points=ConversationHandler('start_countries', start_countries),
-    #     states={},
-    #     fallbacks=[CommandHandler('stop', stop)])
+    countries_handler = ConversationHandler(
+        entry_points=[CommandHandler('start_countries', start_countries)],
+        states={1: [MessageHandler(Filters.text & ~Filters.command, check_country)],
+                2: [MessageHandler(Filters.text & ~Filters.command, reset_countries)],
+                3: [MessageHandler(Filters.text & ~Filters.command, country_sel)]},
+        fallbacks=[CommandHandler('stop', stop)])
     dp.add_handler(city_handler)
     dp.add_handler(labyrint_handler)
+    dp.add_handler(countries_handler)
     dp.add_handler(CommandHandler('close', close_keyboard))
     dp.add_handler(CommandHandler('help_cityes', help_cityes))
     dp.add_handler(CommandHandler('help_labyrint', help_labyrint))
-    # dp.add_handler(CommandHandler('help_countries', help_countries))
+    dp.add_handler(CommandHandler('help_countries', help_countries))
     dp.add_handler(CommandHandler('start', start))
     dp.add_handler(CommandHandler('help', help))
     updater.start_polling()
