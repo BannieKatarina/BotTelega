@@ -13,13 +13,16 @@ logger = logging.getLogger(__name__)
 
 TOKEN = tok
 
+
 def start(update, context):
     update.message.reply_text("""Этот бот может поиграть с Вами в \'Города\', \'Угадай человека\' и некоторые другие.
     Подробнее \'/help\'.""")
 
+
 def help(update, context):
     update.message.reply_text("""/start_cityes - играть в \'Города\';
-    /start_labyrint - играть в \'Лабиринт\'""")
+    /start_labyrint - играть в \'Лабиринт\'
+    /start_countryes - играть в \'Угадай страну по карте\'""")
 
 
 def cityes_start(update, context):
@@ -105,12 +108,221 @@ def help_cityes(update, context):
     return 1
 
 
+def start_labyrint(update, context):
+    reply_keyboard = [['Направо', 'Налево'], ['Прямо', '/help_labyrint']]
+    context.user_data["ways"] = reply_keyboard
+    context.user_data["items"] = []
+    context.user_data["act"] = 1
+    context.user_data["blok"] = False
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    text = "Добро пожаловать в лабиринт. Вам нужно выбраться отсюда. В лабиринте два выхода."
+    text += "Вы можете пойти \"направо\", \"налево\" или \"прямо\"."
+    update.message.reply_text(text, reply_markup=markup)
+    return 1
+
+
+def help_labyrint(update, context):
+    reply_keyboard = context.user_data["ways"]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    text = "Это лабиринт. Вы выбираете куда пойти, выбирая варианты клавиатуры, в попытках найти выход."
+    text += "Здесь несколько концовок."
+    update.message.reply_text(text, reply_markup=markup)
+    return context.user_data["act"]
+
+
+def first_act(update, context):
+    if update.message.text == "Прямо":
+        if "Ключ" in context.user_data["items"]:
+            reply_keyboard = [['/start_labyrint', '/close']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            update.message.reply_text("Вы использовали ключ.")
+            text = "Вы пошли прямо. Здесь темно. Вы упали в какую-то жидкость. Эта яма наполнена кислотой"
+            text += ", и она слишком глубокая, чтобы выбраться. Не повезло."
+            update.message.reply_text(text)
+            update.message.reply_text("Плохая концовка (1/6)", reply_markup=markup)
+            return ConversationHandler.END
+        else:
+            reply_keyboard = [['Направо', 'Налево'], ['Прямо', '/help_labyrint']]
+            context.user_data["ways"] = reply_keyboard
+            context.user_data["act"] = 1
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            text = "Здесь железная дверь. Не пройти."
+            text += "Вы можете пойти \"направо\", \"налево\" или \"прямо\"."
+            update.message.reply_text(text, reply_markup=markup)
+            return 1
+    elif update.message.text == "Направо":
+        reply_keyboard = [['Направо', 'Налево'], ['Назад', '/help_labyrint']]
+        context.user_data["ways"] = reply_keyboard
+        context.user_data["act"] = 2.1
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = "Вы пошли направо. Здесь развилка. Куда пойдем, \"налево\" или \"направо\"?"
+        update.message.reply_text(text, reply_markup=markup)
+        return 2.1
+    else:
+        if not context.user_data["blok"]:
+            reply_keyboard = [['Направо', 'Прямо', 'Налево'], ['Назад', '/help_labyrint']]
+        else:
+            reply_keyboard = [['Прямо', 'Налево'], ['Назад', '/help_labyrint']]
+        context.user_data["ways"] = reply_keyboard
+        context.user_data["act"] = 2.2
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        s = ' \"направо\", ' if not context.user_data['blok'] else ' '
+        text = f"Здесь развилка:{s}"
+        text += "\"прямо\" или \"налево\"?"
+        update.message.reply_text(text, reply_markup=markup)
+        return 2.2
+
+
+def second_act_one(update, context):
+    if update.message.text == "Назад":
+        reply_keyboard = [['Направо', 'Налево'], ['Прямо', '/help_labyrint']]
+        context.user_data["ways"] = reply_keyboard
+        context.user_data["act"] = 1
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = "Вы можете пойти \"направо\", \"налево\" или \"прямо\"."
+        update.message.reply_text(text, reply_markup=markup)
+        return 1
+    elif update.message.text == "Направо":
+        reply_keyboard = [['/start_labyrint', '/close']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = "Вы пошли направо. Это место похоже на берлогу. Это не к добру. "
+        text += "Судя по шагам, которые эхом доносятся до Вас, зверь вернулся! Это медведь! "
+        text += "Я не думаю, что он предложит чашку чая."
+        update.message.reply_text(text)
+        update.message.reply_text("Плохая концовка (2/6)", reply_markup=markup)
+        return ConversationHandler.END
+    elif update.message.text == "Налево":
+        reply_keyboard = [['/start_labyrint', '/close']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = "Вы пошли налево. Вы идёте по длинному коридору. Но что это? В конце виден дневной свет!"
+        text += " Да здравствует свобода!!!"
+        update.message.reply_text(text)
+        update.message.reply_text("Хорошая концовка (3/6)", reply_markup=markup)
+        return ConversationHandler.END
+
+
+def second_act_two(update, context):
+    if update.message.text == "Назад":
+        reply_keyboard = [['Направо', 'Налево'], ['Прямо', '/help_labyrint']]
+        context.user_data["ways"] = reply_keyboard
+        context.user_data["act"] = 1
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = "Вы можете пойти \"направо\", \"налево\" или \"прямо\"."
+        update.message.reply_text(text, reply_markup=markup)
+        return 1
+    elif update.message.text == "Направо":
+        reply_keyboard = [['Ключ', 'Рисовый пирожок'], ['/help_labyrint']]
+        context.user_data["ways"] = reply_keyboard
+        context.user_data["act"] = 3.1
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = "Вы находите какой-то ключ и ... рисовый пирожок. Что возьмём?"
+        update.message.reply_text(text, reply_markup=markup)
+        return 3.1
+    elif update.message.text == "Налево":
+        text = "Вы пошли налево. Вы видите ... домик?! Что ж, он выглядит мило. Здесь живёт кто-то?"
+        text += " Вы постучали в дверь. Её открыл кролик.\n"
+        text += "\'Если дашь мне что-нибудь интересное, то ты можешь остаться у меня.\' - сказал кролик."
+        update.message.reply_text(text)
+        if "Рисовый пирожок" in context.user_data["items"]:
+            reply_keyboard = [['/start_labyrint', '/close']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            text = "\nВы отдаёте рисовый пирожок. Кролик приглашает Вас жить с ним."
+            update.message.reply_text(text)
+            update.message.reply_text("Нейтральная концовка (4/6)", reply_markup=markup)
+            return ConversationHandler.END
+        elif "Ключ" in context.user_data["items"]:
+            if not context.user_data["blok"]:
+                reply_keyboard = [['Направо', 'Прямо', 'Налево'], ['Назад', '/help_labyrint']]
+            else:
+                reply_keyboard = [['Прямо', 'Налево'], ['Назад', '/help_labyrint']]
+            context.user_data["ways"] = reply_keyboard
+            context.user_data["act"] = 2.2
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            text = "\nВы предлагаете ключ. Кролик не пускает Вас. Вы возвращаетесь назад.\n"
+            s = ' \"направо\", ' if not context.user_data['blok'] else ' '
+            text += f"Здесь развилка:{s}"
+            text += "\"прямо\" или \"налево\"?"
+            update.message.reply_text(text, reply_markup=markup)
+            return 2.2
+        else:
+            if not context.user_data["blok"]:
+                reply_keyboard = [['Направо', 'Прямо', 'Налево'], ['Назад', '/help_labyrint']]
+            else:
+                reply_keyboard = [['Прямо', 'Налево'], ['Назад', '/help_labyrint']]
+            context.user_data["ways"] = reply_keyboard
+            context.user_data["act"] = 2.2
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            text = "\nВы возвращаетесь назад, ведь вам нечего предложить.\n"
+            s = ' \"направо\", ' if not context.user_data['blok'] else ' '
+            text += f"Здесь развилка:{s}"
+            text += "\"прямо\" или \"налево\"?"
+            update.message.reply_text(text, reply_markup=markup)
+            return 2.2
+    else:
+        reply_keyboard = [['Направо', 'Налево'], ['Назад', '/help_labyrint']]
+        context.user_data["ways"] = reply_keyboard
+        context.user_data["act"] = 3.2
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = "Вы пошли прямо. Очередная развилка: \"направо\" или \"налево\"?"
+        update.message.reply_text(text, reply_markup=markup)
+        return 3.2
+
+
+def third_act_one(update, context):
+    context.user_data["blok"] = True
+    if update.message.text == "Ключ":
+        context.user_data["items"] += ["Ключ"]
+    else:
+        context.user_data["items"] += ["Рисовый пирожок"]
+    text = f"Вы взяли {context.user_data['items'][0]}. Стена начала двигаться."
+    text += "Вы успеваете проскочить назад. Больше туда не пройти."
+    reply_keyboard = [['Прямо', 'Налево'], ['Назад', '/help_labyrint']]
+    context.user_data["ways"] = reply_keyboard
+    context.user_data["act"] = 2.2
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    text += f"Здесь развилка: \"прямо\" или \"налево\"?"
+    update.message.reply_text(text, reply_markup=markup)
+    return 2.2
+
+
+def third_act_two(update, context):
+    if update.message.text == "Назад":
+        if not context.user_data["blok"]:
+            reply_keyboard = [['Направо', 'Прямо', 'Налево'], ['Назад', '/help_labyrint']]
+        else:
+            reply_keyboard = [['Прямо', 'Налево'], ['Назад', '/help_labyrint']]
+        context.user_data["ways"] = reply_keyboard
+        context.user_data["act"] = 2.2
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        s = ' \"направо\", ' if not context.user_data['blok'] else ' '
+        text = f"Здесь развилка:{s}"
+        text += "\"прямо\" или \"налево\"?"
+        update.message.reply_text(text, reply_markup=markup)
+        return 2.2
+    elif update.message.text == "Направо":
+        reply_keyboard = [['/start_labyrint', '/close']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = "Вы пошли направо. Вы пришли в бункер. Здесь есть еда, вода, постель и другие вещи."
+        text += " Вы решили остаться здесь."
+        update.message.reply_text(text)
+        update.message.reply_text("Нейтральная концовка (5/6)", reply_markup=markup)
+        return ConversationHandler.END
+    else:
+        reply_keyboard = [['/start_labyrint', '/close']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        text = "Это ... Дверь с надписью \"выход\"... Видите: В. Ы. Х. О. Д."
+        text += " Простите, но мне больше нечего сказать -_-"
+        update.message.reply_text(text)
+        update.message.reply_text("Нейтральная концовка (5/6)", reply_markup=markup)
+        return ConversationHandler.END
+
+
 def close_keyboard(update, context):
     update.message.reply_text(reply_markup=ReplyKeyboardRemove())
 
 
 def stop(update, context):
-    update.message.reply_text("Всего доброго!")
+    update.message.reply_text("Хорошо!")
     return ConversationHandler.END
 
 
@@ -119,17 +331,29 @@ def main():
 
     dp = updater.dispatcher
 
-    conv_handler = ConversationHandler(
+    city_handler = ConversationHandler(
         entry_points=[CommandHandler('start_cityes', cityes_start)],
-
-        states={
-            1: [MessageHandler(Filters.text & ~Filters.command, play_cityes)],
-            2: [MessageHandler(Filters.text & ~Filters.command, result_cityes)]
-        }, fallbacks=[CommandHandler('stop', stop)])
-
-    dp.add_handler(conv_handler)
+        states={1: [MessageHandler(Filters.text & ~Filters.command, play_cityes)],
+                2: [MessageHandler(Filters.text & ~Filters.command, result_cityes)]},
+        fallbacks=[CommandHandler('stop', stop)])
+    labyrint_handler = ConversationHandler(
+        entry_points=[CommandHandler('start_labyrint', start_labyrint)],
+        states={1: [MessageHandler(Filters.text & ~Filters.command, first_act)],
+                2.1: [MessageHandler(Filters.text & ~Filters.command, second_act_one)],
+                2.2: [MessageHandler(Filters.text & ~Filters.command, second_act_two)],
+                3.1: [MessageHandler(Filters.text & ~Filters.command, third_act_one)],
+                3.2: [MessageHandler(Filters.text & ~Filters.command, third_act_two)]},
+        fallbacks=[CommandHandler('stop', stop)])
+    # countries_handler = ConversationHandler(
+    #     entry_points=ConversationHandler('start_countries', start_countries),
+    #     states={},
+    #     fallbacks=[CommandHandler('stop', stop)])
+    dp.add_handler(city_handler)
+    dp.add_handler(labyrint_handler)
     dp.add_handler(CommandHandler('close', close_keyboard))
     dp.add_handler(CommandHandler('help_cityes', help_cityes))
+    dp.add_handler(CommandHandler('help_labyrint', help_labyrint))
+    # dp.add_handler(CommandHandler('help_countries', help_countries))
     dp.add_handler(CommandHandler('start', start))
     dp.add_handler(CommandHandler('help', help))
     updater.start_polling()
