@@ -320,7 +320,7 @@ def third_act_two(update, context):
 
 
 def help_countries(update, context):
-    text = 'В этой игре надо угадать город по карте. Карта может быть типа \"Схема\", \"Спутник\" или '
+    text = 'В этой игре надо угадать город по карте. Карта типа '
     text += '\"Гибрид\". На карте будет одна из знаменитых достопримечательностей. У Вас три попытки. '
     text += 'После трёх попыток будет показан правильный ответ и достопримечательность, изображенная '
     text += 'на карте. Когда игра закончиться, бот покажет вам сколько стран Вы смогли отгадать.'
@@ -328,18 +328,21 @@ def help_countries(update, context):
 
 
 def select_country(sp):
-    con = sqlite3.connect('data/bots_countries.db')
-    cur = con.cursor()
-    index = random.choice(sp)
-    lon, lat = cur.execute(f"""SELECT longitudes, latitudes FROM Countries WHERE id={index}""").fetchone()
-    api_server = "http://static-maps.yandex.ru/1.x/"
-    params = {
-        "ll": ",".join([str(lon), str(lat)]),
-        "spn": '0.002,0.002',
-        "l": random.choice(["map", "sat", "sat,skl"])
-    }
-    response = requests.get(api_server, params=params)
-    return index, response.url
+    if sp:
+        con = sqlite3.connect('data/bots_countries.db')
+        cur = con.cursor()
+        index = random.choice(sp)
+        lon, lat = cur.execute(f"""SELECT longitudes, latitudes FROM Countries WHERE id={index}""").fetchone()
+        api_server = "http://static-maps.yandex.ru/1.x/"
+        params = {
+            "ll": ",".join([str(lon), str(lat)]),
+            "spn": '0.0002,0.0002',
+            "l": "sat,skl"
+        }
+        response = requests.get(api_server, params=params)
+        return index, response.url
+    else:
+        return 0, 'Страны закончились.'
 
 
 def start_countries(update, context):
@@ -380,7 +383,7 @@ def check_country(update, context):
     if update.message.text == right_country:
         reply_keyboard = [['Да', 'Нет']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-        text = 'Поздравляю! Это правильный ответ.'
+        text = 'Поздравляю! Это правильный ответ. '
         text += f'Это {landmark}. Продолжить?'
         context.user_data['right_country_count'] += 1
         context.user_data['all_country_count'] += 1
@@ -435,15 +438,25 @@ def country_sel(update, context):
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
         context.user_data['country_tries'] = 3
         context.user_data['country_task'], image = select_country(context.user_data['countries'])
-        update.message.reply_text(image)
-        update.message.reply_text('Что это за страна?', reply_markup=markup)
-        return 1
+        if context.user_data['country_task'] != 0:
+            update.message.reply_text(image)
+            update.message.reply_text('Что это за страна?', reply_markup=markup)
+            return 1
+        else:
+            reply_keyboard = [['/start_countries', '/close']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            update.message.reply_text(image, reply_markup=markup)
+            text = f'Вы отгадали {context.user_data["right_country_count"]} из '
+            text += f'{context.user_data["all_country_count"]}'
+            update.message.reply_text(text, reply_markup=markup)
+            return ConversationHandler.END
     else:
         reply_keyboard = [['/start_countries', '/close']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
         text = f'Вы отгадали {context.user_data["right_country_count"]} из '
         text += f'{context.user_data["all_country_count"]}'
         update.message.reply_text(text, reply_markup=markup)
+        return ConversationHandler.END
 
 
 def close_keyboard(update, context):
