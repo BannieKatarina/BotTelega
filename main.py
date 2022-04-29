@@ -13,7 +13,8 @@ people = {'alexander2.webp': ['александр ii', 'александр ii о
           'tomholland.webp': ['том холланд', 'холланд']}
 characters = {'harrypotter.webp': ['гарри поттер', 'гарри джеймс поттер'],
               'ironman.webp': ['железный человек', 'тони старк'], 'leonardo.webp': ['леонардо', 'лео'],
-              'sonic.webp': ['соник']}
+              'sonik.webp': ['соник'], 'dinvinchester.webp': ['дин винчестер'],
+              'dominiktoretto.webp': ['доминик торетто'], 'rambo.webp': ['рэмбо', 'джон рэмбо']}
 cesar_codes = {'Цифуисаи м цфчз ёхй уифицфчц': 'Терпенье и труд всё перетрут',
                'Учъ егёцт ач фнюбфыко ы гнуэё ыъ вгёцт': 'Без труда не выловишь и рыбку из пруда',
                'Об шфзпк лбсбгбк – спупл оё сбиёгбк': 'На чужой каравай – роток не разевай',
@@ -49,7 +50,7 @@ def check_answer_play_guess_character(update, context):
         update.message.reply_text('Вы угадали. Поздравляем!')
         return ConversationHandler.END
     else:
-        update.message.reply_text('Вы не угадали. Поробуйте ещё.')
+        update.message.reply_text('Вы не угадали. Попробуйте ещё.')
         return 1
 
 
@@ -58,7 +59,7 @@ def check_answer_play_guess_person(update, context):
         update.message.reply_text('Вы угадали. Поздравляем!')
         return ConversationHandler.END
     else:
-        update.message.reply_text('Вы не угадали. Поробуйте ещё.')
+        update.message.reply_text('Вы не угадали. Попробуйте ещё.')
         return 1
 
 
@@ -67,7 +68,7 @@ def check_answer_play_decoding_cesar(update, context):
         update.message.reply_text('Вы угадали. Поздравляем!')
         return ConversationHandler.END
     else:
-        update.message.reply_text('Вы не угадали. Поробуйте ещё.')
+        update.message.reply_text('Вы не угадали. Попробуйте ещё.')
         return 1
 
 
