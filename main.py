@@ -584,15 +584,15 @@ def main():
     conv_handler_play_guess_person = ConversationHandler(
         entry_points=[CommandHandler('play_guess_person', play_guess_person)],
         states={1: [MessageHandler(Filters.text & ~Filters.command, check_answer_play_guess_person)]},
-        fallbacks=[CommandHandler('stop_guess_person', stop_guess_person)])
+        fallbacks=[CommandHandler('stop', stop_guess_person)])
     conv_handler_play_guess_character = ConversationHandler(
         entry_points=[CommandHandler('play_guess_character', play_guess_character)],
         states={1: [MessageHandler(Filters.text & ~Filters.command, check_answer_play_guess_character)]},
-        fallbacks=[CommandHandler('stop_guess_character', stop_guess_character)])
+        fallbacks=[CommandHandler('stop', stop_guess_character)])
     conv_handler_play_decoding_cesar = ConversationHandler(
         entry_points=[CommandHandler('play_decoding_cesar', play_decoding_cesar)],
         states={1: [MessageHandler(Filters.text & ~Filters.command, check_answer_play_decoding_cesar)]},
-        fallbacks=[CommandHandler('stop_decoding_cesar', stop_guess_character)])
+        fallbacks=[CommandHandler('stop', stop_guess_character)])
     dp.add_handler(city_handler)
     dp.add_handler(labyrint_handler)
     dp.add_handler(countries_handler)
